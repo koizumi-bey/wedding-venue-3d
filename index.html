@@ -209,6 +209,7 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 /* ============================================================
    座標系:  +X = 東 / -X = 西（海・サンセット）
@@ -1246,6 +1247,33 @@ function fireworkMark(){
   return g;
 }
 
+/* --- 本物の3Dモデル（GLB）読み込み ---
+   写真から作った/ライブラリの立体家具を items/*.glb として読み込み、
+   実寸(メートル)に正規化して地面に立たせ、カタログ品として複製配置する。 */
+const MODELS={};
+const _gltfLoader=new GLTFLoader();
+function _normalizeModel(root, targetW){
+  root.traverse(m=>{ if(m.isMesh){ m.castShadow=true; m.receiveShadow=true; if(m.material) m.material.envMapIntensity=.85; } });
+  let box=new THREE.Box3().setFromObject(root);
+  const size=new THREE.Vector3(); box.getSize(size);
+  const s=targetW/Math.max(size.x, size.z||size.x);   // 横幅の最大辺を実寸に合わせる
+  root.scale.setScalar(s);
+  box=new THREE.Box3().setFromObject(root);
+  const c=new THREE.Vector3(); box.getCenter(c);
+  root.position.x-=c.x; root.position.z-=c.z; root.position.y-=box.min.y;  // 中心XZ・地面Y=0
+  const g=new THREE.Group(); g.add(root); return g;
+}
+async function loadModel(id, url, targetW){
+  const gltf=await _gltfLoader.loadAsync(url);
+  MODELS[id]=_normalizeModel(gltf.scene, targetW);
+}
+function gltfItem(id){
+  if(MODELS[id]) return MODELS[id].clone(true);
+  const g=new THREE.Group();   // 未ロード時のフォールバック
+  const b=new THREE.Mesh(new THREE.BoxGeometry(2,.8,.9), new THREE.MeshStandardMaterial({color:0x7a5a48,roughness:.85}));
+  b.position.y=.4; b.castShadow=b.receiveShadow=true; g.add(b); return g;
+}
+
 const CATALOG=[
   {g:'席・テーブル', items:[
     {id:'round8',  n:'丸テーブル 8名',      c:'#d8c9a8', seats:8,  sz:'φ1.8m', b:()=>roundTable(8)},
@@ -1289,6 +1317,7 @@ const CATALOG=[
     {id:'tentBig', n:'大テント 6×12m',      c:'#fbfaf6', sz:'6×12m',  b:()=>tent(6,12,2.6,1.5)},
     {id:'parasol', n:'パラソル',            c:'#fbfaf6', sz:'φ3m',    b:parasol},
     {id:'lounge',  n:'ラウンジ（くつろぎ）',  c:'#e8dfcc', sz:'3.2×2.4m', b:lounge},
+    {id:'sofa3d',  n:'ラウンジソファ（本物3D）', c:'#7a5a48', sz:'約2.2×0.9m', b:()=>gltfItem('sofa')},
     {id:'kids',    n:'キッズスペース',        c:'#8fbcd0', sz:'3×3m',   b:kidsSpace},
   ]},
   {g:'受付まわり', items:[
@@ -1600,7 +1629,8 @@ const PRESET=[
   {id:'long12',x:0,z:35,ry:0},{id:'long12',x:11,z:35,ry:0},
   // ❹ 居間スペース（東側・20:30フィナーレ移動先）
   {id:'round8',x:19,z:21,ry:0},{id:'round8',x:20,z:27,ry:0},
-  {id:'lounge',x:20,z:33,ry:-Math.PI/2},{id:'parasol',x:19,z:15,ry:0},
+  {id:'sofa3d',x:17.5,z:31,ry:Math.PI/2},{id:'sofa3d',x:22.5,z:31,ry:-Math.PI/2},
+  {id:'lounge',x:20,z:37,ry:-Math.PI/2},{id:'parasol',x:19,z:15,ry:0},
   // スクリーン・DJ（東〜南）
   {id:'screen',x:16,z:31,ry:-Math.PI/2-.45},
   {id:'dj',x:13,z:38,ry:-Math.PI/2},
@@ -1620,7 +1650,7 @@ $('bPreset').onclick=()=>{
 $('bClear').onclick=()=>{ if(items.length && confirm('配置をすべて消しますか？')){ pushUndo(); clearAll(); select(null); save(); } };
 
 /* --- 保存 / 読込 --- */
-const KEY='bibi-venue-layout-v2';   // v2: PDF動線・ビュッフェ南側・ギャラリー東側に更新（旧保存を無効化）
+const KEY='bibi-venue-layout-v3';   // v3: 居間スペースに本物3Dソファを追加（旧保存を無効化）
 function save(){ try{ localStorage.setItem(KEY, JSON.stringify(snapshot())); }catch(e){} }
 function load(){
   try{
@@ -1818,10 +1848,12 @@ function tick(){
 }
 
 window.VENUE={ scene, renderer, composer, camera, controls, sun, hemi, sky, sea,
-               world, pavilion, picnics, guests, items, M, V, updateEnv };
+               world, pavilion, picnics, guests, items, M, V, MODELS, updateEnv };
 
 setTime(+$('time').value);
 updateEnv();
+try{ await loadModel('sofa','./items/lounge_sofa.glb', 2.2); }
+catch(e){ console.warn('3Dモデル読込に失敗（フォールバック表示）:', e); }
 if(!load()) PRESET.forEach(d=>addItem(d.id,d.x,d.z,d.ry||0));
 updateStats();
 document.querySelector('[data-view="over"]').classList.add('on');
