@@ -1340,6 +1340,56 @@ function photoArch(){
   return g;
 }
 
+/* ============================================================
+   実物写真から起こした什器：パーカウンター / 吊りランタン
+   ============================================================ */
+// パーカウンター：白パネル＋オーク縁取り＋オーク天板（実物写真ベース）
+function barCounter(){
+  const g=new THREE.Group();
+  const W=2.6, D=.75, H=1.02, white=std({color:0xf1ede4, roughness:.5});
+  const body=new THREE.Mesh(rbox(W,H,D,.02), white); body.position.y=H/2+.05; g.add(body);
+  const top=new THREE.Mesh(rbox(W+.12,.07,D+.14,.02), M.wood); top.position.y=H+.09; g.add(top);
+  for(const sx of [-1,1]) for(const sz of [-1,1]){
+    const c=new THREE.Mesh(rbox(.09,H+.05,.09,.01), M.wood); c.position.set(sx*(W/2-.02),(H+.05)/2,sz*(D/2-.02)); g.add(c);
+  }
+  for(const yy of [H-.03,.12]) for(const sz of [1,-1]){
+    const r=new THREE.Mesh(rbox(W-.16,.05,.03,.01), M.wood); r.position.set(0,yy,sz*(D/2+.002)); g.add(r);
+  }
+  for(const sz of [1,-1]){                                     // 前後面の額縁モールディング
+    const fw=W*.62, fh=H*.46;
+    for(const [ox,oy,w,h] of [[0,fh/2,fw,.03],[0,-fh/2,fw,.03],[-fw/2,0,.03,fh],[fw/2,0,.03,fh]]){
+      const bar=new THREE.Mesh(new THREE.BoxGeometry(w,h,.02), M.wood); bar.position.set(ox,.5+oy,sz*(D/2+.012)); g.add(bar);
+    }
+  }
+  for(let i=0;i<3;i++){ const b=new THREE.Mesh(new THREE.CylinderGeometry(.045,.05,.3,10), std({color:[0x3b5e3b,0x6b3b2f,0x7a7a86][i],roughness:.35})); b.position.set(-.9+i*.26,H+.24,.06); g.add(b); }
+  const disp=new THREE.Mesh(rbox(.24,.34,.24,.03), std({color:0xd9a24a,roughness:.4,transparent:true,opacity:.85})); disp.position.set(.5,H+.26,0); g.add(disp);
+  const stem=new THREE.Mesh(new THREE.CylinderGeometry(.02,.02,.36,6), M.green); stem.position.set(1.0,H+.28,0); g.add(stem);
+  for(let i=0;i<6;i++){ const fl=new THREE.Mesh(new THREE.SphereGeometry(.06,8,6), i%2?M.flower:M.petal); fl.position.set(1.0+(Math.random()-.5)*.2,H+.4+Math.random()*.14,(Math.random()-.5)*.2); g.add(fl); }
+  return g;
+}
+// ラタン/竹の編みシェード用テクスチャ（斜め格子）
+const _rattanTex = canvasTex(64,(g,S)=>{
+  g.fillStyle='#c9a86a'; g.fillRect(0,0,S,S);
+  g.strokeStyle='rgba(92,60,24,.55)'; g.lineWidth=S*.05;
+  for(let i=-S;i<S*2;i+=S*.2){ g.beginPath(); g.moveTo(i,0); g.lineTo(i+S,S); g.stroke(); g.beginPath(); g.moveTo(i+S,0); g.lineTo(i,S); g.stroke(); }
+});
+_rattanTex.repeat.set(4,2);
+const _rattanMat = new THREE.MeshStandardMaterial({ map:_rattanTex, roughness:.82, emissive:0x5a3c14, emissiveIntensity:.35, side:THREE.DoubleSide });
+// テント・東屋から吊るす編みランタン＋マクラメ（実物写真ベース）
+function hangLantern(){
+  const g=new THREE.Group(); const mount=3.3;
+  const cordTo=(x,y,z)=>{ const c=new THREE.Mesh(new THREE.CylinderGeometry(.006,.006,mount-y,4), M.black); c.position.set(x,(mount+y)/2,z); g.add(c); };
+  const bulbAt=(x,y,z)=>{ const b=new THREE.Mesh(new THREE.SphereGeometry(.05,8,6), M.bulb); b.position.set(x,y,z); g.add(b); };
+  { const x=-.7,y=2.5,z=0; cordTo(x,y,z); const s=new THREE.Mesh(new THREE.SphereGeometry(.42,18,14), _rattanMat); s.scale.y=.6; s.position.set(x,y,z); g.add(s); bulbAt(x,y,z); }           // 玉ねぎ型
+  { const x=.65,y=2.15,z=.35; cordTo(x,y,z); const s=new THREE.Mesh(new THREE.CylinderGeometry(.34,.34,.4,20,1,true), _rattanMat); s.position.set(x,y,z); g.add(s); bulbAt(x,y,z); }              // ドラム型
+  { const x=.1,y=2.7,z=-.5; cordTo(x,y,z);                                                                                                                                                       // マクラメ房付き
+    const d=new THREE.Mesh(new THREE.CylinderGeometry(.28,.3,.32,18,1,true), M.clothW); d.position.set(x,y,z); g.add(d);
+    for(let k=0;k<18;k++){ const a=k/18*Math.PI*2; const f=new THREE.Mesh(new THREE.CylinderGeometry(.004,.004,.34,4), M.clothW); f.position.set(x+Math.cos(a)*.29,y-.33,z+Math.sin(a)*.29); g.add(f); }
+    bulbAt(x,y-.02,z);
+  }
+  return g;
+}
+
 /* --- 本物の3Dモデル（GLB）読み込み ---
    写真から作った/ライブラリの立体家具を items/*.glb として読み込み、
    実寸(メートル)に正規化して地面に立たせ、カタログ品として複製配置する。 */
@@ -1380,6 +1430,7 @@ const CATALOG=[
   {g:'料理・ドリンク', items:[
     {id:'buffet',  n:'ビュッフェ台',        c:'#e8dfcc', sz:'2.4×0.9m', b:buffet},
     {id:'bar',     n:'ドリンクバー',        c:'#6e6252', sz:'2.6×0.8m', b:drinkBar},
+    {id:'barCounter', n:'パーカウンター（白×木・実物）', c:'#efe9dd', sz:'2.6×0.75m', b:barCounter, resize:'x'},
     {id:'bins',    n:'ゴミステーション',     c:'#3a7d44', sz:'1.8×0.6m', b:bins},
   ]},
   {g:'音響・映像', items:[
@@ -1415,6 +1466,7 @@ const CATALOG=[
     {id:'parasol', n:'パラソル',            c:'#fbfaf6', sz:'φ3m',    b:parasol},
     {id:'lounge',  n:'ラウンジ（くつろぎ）',  c:'#e8dfcc', sz:'3.2×2.4m', b:lounge},
     {id:'sofa3d',  n:'ラウンジソファ（本物3D）', c:'#7a5a48', sz:'約2.2×0.9m', b:()=>gltfItem('sofa')},
+    {id:'lantern', n:'吊りランタン（ラタン/マクラメ）', c:'#c9a86a', sz:'約2×3m（吊）', b:hangLantern},
     {id:'kids',    n:'キッズスペース',        c:'#8fbcd0', sz:'3×3m',   b:kidsSpace},
   ]},
   {g:'受付まわり', items:[
@@ -1710,7 +1762,9 @@ const PRESET=[
   // ❷ ギャラリー（東側・デフォルトは案①展示台＋パネル。上部ボタンで案②③④に切替可）
   {id:'plan1',x:-4,z:-8,ry:0},{id:'plan1',x:0.5,z:-8,ry:0},{id:'plan1',x:5,z:-8,ry:0},
   // ❸ バー（ウェルカムドリンク）
-  {id:'bar',x:5,z:0,ry:Math.PI},
+  {id:'barCounter',x:5,z:0,ry:Math.PI},
+  // 東屋（パビリオン）の下に吊りランタンで雰囲気づけ
+  {id:'lantern',x:-25,z:5,ry:0},{id:'lantern',x:-25,z:-9,ry:0.6},
   // ビュッフェ（南の高台デッキ＝結婚式側 ← ここが今回の修正点）
   {id:'buffet',x:-20,z:13,ry:0},{id:'buffet',x:-20,z:10,ry:0},{id:'buffet',x:-20,z:7,ry:0},
   // 挙式・高砂（海／夕日側、ゲストへ向く）＋三線ステージ
@@ -1776,7 +1830,7 @@ $('bPlanClear').onclick=()=>{ pushUndo(); clearGalleryPlans();
   document.querySelectorAll('[data-plan]').forEach(b=>b.classList.remove('on')); select(null); save(); };
 
 /* --- 保存 / 読込 --- */
-const KEY='bibi-venue-layout-v4';   // v4: ギャラリー4案の3D什器＋案切替プレビューを追加（旧保存を無効化）
+const KEY='bibi-venue-layout-v5';   // v5: パーカウンター（白×木）＋吊りランタンを追加（旧保存を無効化）
 function save(){ try{ localStorage.setItem(KEY, JSON.stringify(snapshot())); }catch(e){} }
 function load(){
   try{
