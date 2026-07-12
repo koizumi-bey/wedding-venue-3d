@@ -122,6 +122,13 @@
       <button class="btn" id="bExport">保存(JSON)</button>
       <button class="btn" id="bImport">読込</button>
       <button class="btn" id="bShot">画像で書出</button>
+      <span style="width:1px;background:var(--line);margin:0 2px"></span>
+      <span style="font-size:10px;color:var(--dim);align-self:center;padding:0 2px">ギャラリー案</span>
+      <button class="btn" data-plan="1">案①展示台</button>
+      <button class="btn" data-plan="2">案②吊り布</button>
+      <button class="btn" data-plan="3">案③木に吊る</button>
+      <button class="btn" data-plan="4">案④アーチ</button>
+      <button class="btn" id="bPlanClear">案を消す</button>
     </div>
     <div id="hint"></div>
     <div id="compass"><svg id="needle" viewBox="0 0 60 60">
@@ -1247,6 +1254,92 @@ function fireworkMark(){
   return g;
 }
 
+/* ============================================================
+   ギャラリー案 4種（PDF: 26.10.11 会場〜スケジュール より）
+   ①展示台＋パネル ②木〜東屋に吊りタペストリー ③木に写真を吊るす ④フォトアーチ
+   ============================================================ */
+// 共通：写真っぽいテクスチャ（夕景＋人影）と、文字ストーリーのテクスチャ
+const _photoMat = new THREE.MeshStandardMaterial({ roughness:.62, side:THREE.DoubleSide, map: canvasTex(256,(g,S)=>{
+  const sky=g.createLinearGradient(0,0,0,S); sky.addColorStop(0,'#f4cf93'); sky.addColorStop(.55,'#e8a394'); sky.addColorStop(1,'#cdae88');
+  g.fillStyle=sky; g.fillRect(0,0,S,S);
+  g.fillStyle='rgba(255,246,220,.92)'; g.beginPath(); g.arc(S*.5,S*.44,S*.12,0,7); g.fill();          // 夕日
+  g.fillStyle='rgba(70,58,60,.5)';  g.fillRect(0,S*.72,S,S*.28);                                       // 地面
+  g.fillStyle='rgba(38,30,34,.8)';                                                                      // 人影2つ
+  g.beginPath(); g.ellipse(S*.43,S*.73,S*.045,S*.14,0,0,7); g.fill();
+  g.beginPath(); g.ellipse(S*.56,S*.73,S*.052,S*.16,0,0,7); g.fill();
+  g.strokeStyle='#fbf7ee'; g.lineWidth=S*.035; g.strokeRect(0,0,S,S);                                   // 白フチ
+})});
+const _storyMat = new THREE.MeshStandardMaterial({ roughness:.9, side:THREE.DoubleSide, map: canvasTex(256,(g,S)=>{
+  g.fillStyle='#f7f2e8'; g.fillRect(0,0,S,S);
+  g.fillStyle='#3b3833'; g.textAlign='center';
+  g.font=`italic ${Math.round(S*.15)}px Georgia,serif`; g.fillText('Story',S*.5,S*.19);
+  g.fillStyle='rgba(80,76,70,.45)'; for(let i=0;i<5;i++) g.fillRect(S*.18,S*.32+i*S*.075,S*.64,S*.022);  // 本文
+  g.fillStyle='#cdb89a'; g.fillRect(S*.19,S*.74,S*.27,S*.18); g.fillRect(S*.54,S*.74,S*.27,S*.18);        // 写真2枚
+})});
+
+// 案①：BBQ台に布をかけ、パネル＋モノ（本・CD）を展示する展示台
+function galleryPanels(){
+  const g=new THREE.Group();
+  const drape=new THREE.Mesh(rbox(2.0,.78,.9,.02), M.linen); drape.position.y=.39; g.add(drape);
+  const top=new THREE.Mesh(rbox(2.06,.05,.96,.015), M.linen); top.position.y=.8; g.add(top);
+  const sizes=[[.5,.66],[.42,.56],[.36,.48]], xs=[-.62,.02,.6];
+  for(let i=0;i<3;i++){ const [w,h]=sizes[i];
+    const fr=new THREE.Mesh(rbox(w+.05,h+.05,.03,.01), M.wood); fr.position.set(xs[i],.8+h/2,-.06); fr.rotation.x=-.16;
+    const ph=new THREE.Mesh(new THREE.PlaneGeometry(w,h), _photoMat); ph.position.set(xs[i],.8+h/2,-.04); ph.rotation.x=-.16;
+    g.add(fr,ph);
+  }
+  const book=new THREE.Mesh(rbox(.22,.05,.16,.01), std({color:0x8a6b52,roughness:.8})); book.position.set(-.16,.83,.3); book.rotation.y=.3; g.add(book);
+  const cd=new THREE.Mesh(new THREE.CylinderGeometry(.09,.09,.012,24), M.chrome); cd.position.set(.34,.82,.32); cd.rotation.x=-.06; g.add(cd);
+  return g;
+}
+// 案②：2本のポールに紐を張り、文字＋写真のタペストリーを吊るす
+function tapestryLine(){
+  const g=new THREE.Group(); const span=5.0;
+  for(const s of [-1,1]){ const p=pole(2.9,.04,M.wood); p.position.x=s*span/2; g.add(p); }
+  const cord=new THREE.QuadraticBezierCurve3(new THREE.Vector3(-span/2,2.85,0), new THREE.Vector3(0,2.52,0), new THREE.Vector3(span/2,2.85,0));
+  g.add(new THREE.Mesh(new THREE.TubeGeometry(cord,16,.01,5), M.black));
+  for(let i=0;i<3;i++){ const p=cord.getPoint((i+.5)/3);
+    const b=new THREE.Mesh(new THREE.PlaneGeometry(1.15,1.8,1,8), i===1?_storyMat:_photoMat);
+    const pa=b.geometry.attributes.position;
+    for(let k=0;k<pa.count;k++) pa.setZ(k, Math.sin(pa.getY(k)*3+i)*.03);
+    b.geometry.computeVertexNormals(); b.position.set(p.x,p.y-.95,0); g.add(b);
+    const clip=new THREE.Mesh(rbox(.06,.08,.03,.01), M.wood); clip.position.set(p.x,p.y-.02,0); g.add(clip);
+  }
+  return g;
+}
+// 案③：木の枝から写真カード・言葉タグを雨のように吊るす
+function hangPhotos(){
+  const g=new THREE.Group();
+  const branch=new THREE.Mesh(new THREE.CylinderGeometry(.05,.06,3.4,8), M.woodDk);
+  branch.rotation.z=Math.PI/2; branch.rotation.x=.05; branch.position.y=3.0; g.add(branch);
+  for(let i=0;i<10;i++){
+    const x=(Math.random()-.5)*3.0, z=(Math.random()-.5)*.8, drop=1.0+Math.random()*1.3;
+    const str=new THREE.Mesh(new THREE.CylinderGeometry(.004,.004,drop,4), M.black); str.position.set(x,3.0-drop/2,z); g.add(str);
+    const card=(i%3===0) ? new THREE.Mesh(new THREE.PlaneGeometry(.34,.14), _storyMat)
+                         : new THREE.Mesh(new THREE.PlaneGeometry(.28,.36), _photoMat);
+    card.position.set(x,3.0-drop,z); card.rotation.y=Math.random()*.6-.3; g.add(card);
+  }
+  return g;
+}
+// 案④：ドレープ布を垂らしたアーチに時系列写真＋温かい電飾
+function photoArch(){
+  const g=new THREE.Group();
+  const t=new THREE.Mesh(new THREE.TorusGeometry(1.3,.06,10,24,Math.PI), M.wood); t.position.y=2.1; g.add(t);
+  for(const s of [-1,1]){ const p=pole(2.1,.06,M.wood); p.position.x=s*1.3; g.add(p); }
+  const dg=new THREE.PlaneGeometry(2.9,1.3,12,6), dp=dg.attributes.position;
+  for(let i=0;i<dp.count;i++){ const x=dp.getX(i),y=dp.getY(i); dp.setZ(i, -Math.cos(x*1.02)*.28 - y*.12); }
+  dg.computeVertexNormals();
+  const drape=new THREE.Mesh(dg, M.clothW); drape.position.set(0,2.5,.12); drape.rotation.x=.45; g.add(drape);
+  for(const [x,y] of [[-1,1.55],[1,1.55],[-1,.75],[1,.75]]){
+    const ph=new THREE.Mesh(new THREE.PlaneGeometry(.48,.6), _photoMat); ph.position.set(x,y,.06); g.add(ph);
+  }
+  for(let i=0;i<7;i++){ const a=Math.PI*(i/6);
+    const b=new THREE.Mesh(new THREE.SphereGeometry(.05,8,6), M.bulb);
+    b.position.set(Math.cos(a)*1.3,2.1+Math.sin(a)*1.3,.13); g.add(b);
+  }
+  return g;
+}
+
 /* --- 本物の3Dモデル（GLB）読み込み ---
    写真から作った/ライブラリの立体家具を items/*.glb として読み込み、
    実寸(メートル)に正規化して地面に立たせ、カタログ品として複製配置する。 */
@@ -1302,6 +1395,10 @@ const CATALOG=[
   ]},
   {g:'ギャラリー・装飾', items:[
     {id:'gallery', n:'ギャラリー展示台',      c:'#e8dfcc', sz:'1.9×0.9m', b:galleryTable},
+    {id:'plan1',   n:'ギャラリー案①展示台＋パネル', c:'#dcc9a0', sz:'2.0×0.9m', b:galleryPanels},
+    {id:'plan2',   n:'ギャラリー案②吊りタペストリー', c:'#e3dccb', sz:'5×2.9m', b:tapestryLine},
+    {id:'plan3',   n:'ギャラリー案③木に写真を吊るす', c:'#c9b79a', sz:'3.4×3m', b:hangPhotos},
+    {id:'plan4',   n:'ギャラリー案④フォトアーチ', c:'#efe6d4', sz:'2.9×2.7m', b:photoArch},
     {id:'tapestry',n:'タペストリー',          c:'#e8dfcc', sz:'1.5×2.6m', b:tapestry},
     {id:'lights',  n:'ストリングライト',       c:'#ffca6a', sz:'8m',      b:stringLights, resize:'x'},
     {id:'photo',   n:'フォトブース',           c:'#e8dfcc', sz:'2.6×2.3m', b:photoBooth},
@@ -1610,9 +1707,8 @@ const PRESET=[
   {id:'reception',x:-26,z:-19,ry:0},
   {id:'welcome',x:-30,z:-16,ry:.4},
   {id:'cloak',x:-22,z:-19,ry:0},{id:'cloak',x:-22,z:-17,ry:0},
-  // ❷ ギャラリー（東側・案1: BBQ台に布＋パネルを2×2で展示）
-  {id:'gallery',x:-3,z:-10,ry:0},{id:'gallery',x:2,z:-10,ry:0},
-  {id:'gallery',x:-3,z:-5,ry:0},{id:'gallery',x:2,z:-5,ry:0},
+  // ❷ ギャラリー（東側・デフォルトは案①展示台＋パネル。上部ボタンで案②③④に切替可）
+  {id:'plan1',x:-4,z:-8,ry:0},{id:'plan1',x:0.5,z:-8,ry:0},{id:'plan1',x:5,z:-8,ry:0},
   // ❸ バー（ウェルカムドリンク）
   {id:'bar',x:5,z:0,ry:Math.PI},
   // ビュッフェ（南の高台デッキ＝結婚式側 ← ここが今回の修正点）
@@ -1649,8 +1745,38 @@ $('bPreset').onclick=()=>{
 };
 $('bClear').onclick=()=>{ if(items.length && confirm('配置をすべて消しますか？')){ pushUndo(); clearAll(); select(null); save(); } };
 
+/* --- ギャラリー案プレビュー（PDFの4案をその場で見比べる） --- */
+const GALLERY_PLANS={
+  1:{ items:[['plan1',-4,-8,0],['plan1',0.5,-8,0],['plan1',5,-8,0]],
+      view:{p:[7,6,-20],t:[0.5,1.2,-8]},
+      hint:'案① 展示台＋布＋パネル：受付後にじっくり見せる展示会型。本やCDなど「モノ」も展示可（東側）' },
+  2:{ items:[['plan2',-8,8,0.5],['plan2',-3,18,0.5]],
+      view:{p:[12,7,20],t:[-5,2,13]},
+      hint:'案② 木〜東屋に紐＋吊りタペストリー：文字と写真でHER/HIS/THEIR Story。整然と映える' },
+  3:{ items:[['plan3',2,44,0],['plan3',5,47,1.2],['plan3',-1,47,-0.6]],
+      view:{p:[13,6,44],t:[2,2,46]},
+      hint:'案③ 中央の木に写真・言葉を吊るす：大切な言葉と思い出を吊り下げる。最もエモーショナル' },
+  4:{ items:[['plan4',-2,26,Math.PI/2],['plan4',-6,26,Math.PI/2],['plan4',-10,26,Math.PI/2]],
+      view:{p:[-6,4.5,35],t:[-6,1.6,26]},
+      hint:'案④ 高砂への道にフォトアーチ＋時系列写真：夜のコンテンツ「ふたりのルーツを辿る」で映える' },
+};
+function clearGalleryPlans(){ [...items].filter(o=>/^plan/.test(o.userData.id)).forEach(removeItem); }
+function showGalleryPlan(n){
+  const plan=GALLERY_PLANS[n]; if(!plan) return;
+  pushUndo(); clearGalleryPlans();
+  plan.items.forEach(a=>addItem(a[0],a[1],a[2],a[3]));
+  const v=plan.view; camera.position.set(...v.p); controls.target.set(...v.t); controls.update();
+  document.querySelectorAll('[data-view]').forEach(x=>x.classList.remove('on'));
+  document.querySelectorAll('[data-plan]').forEach(b=>b.classList.toggle('on', b.dataset.plan===String(n)));
+  setPlanMode(false); select(null);
+  showHint(plan.hint); clearTimeout(window.__gpT); window.__gpT=setTimeout(hideHint,5200); save();
+}
+document.querySelectorAll('[data-plan]').forEach(b=>b.onclick=()=>showGalleryPlan(+b.dataset.plan));
+$('bPlanClear').onclick=()=>{ pushUndo(); clearGalleryPlans();
+  document.querySelectorAll('[data-plan]').forEach(b=>b.classList.remove('on')); select(null); save(); };
+
 /* --- 保存 / 読込 --- */
-const KEY='bibi-venue-layout-v3';   // v3: 居間スペースに本物3Dソファを追加（旧保存を無効化）
+const KEY='bibi-venue-layout-v4';   // v4: ギャラリー4案の3D什器＋案切替プレビューを追加（旧保存を無効化）
 function save(){ try{ localStorage.setItem(KEY, JSON.stringify(snapshot())); }catch(e){} }
 function load(){
   try{
