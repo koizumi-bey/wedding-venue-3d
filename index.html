@@ -129,6 +129,13 @@
       <button class="btn" data-plan="3">案③木に吊る</button>
       <button class="btn" data-plan="4">案④アーチ</button>
       <button class="btn" id="bPlanClear">案を消す</button>
+      <span style="width:1px;background:var(--line);margin:0 2px"></span>
+      <span style="font-size:10px;color:var(--dim);align-self:center;padding:0 2px">レイアウト全体</span>
+      <button class="btn" data-layout="1">①夕日シアター</button>
+      <button class="btn" data-layout="2">②島</button>
+      <button class="btn" data-layout="3">③昼夜二幕</button>
+      <button class="btn" data-layout="4">④長卓</button>
+      <button class="btn" data-layout="5">⑤半円</button>
     </div>
     <div id="hint"></div>
     <div id="compass"><svg id="needle" viewBox="0 0 60 60">
@@ -1913,6 +1920,75 @@ function showGalleryPlan(n){
 document.querySelectorAll('[data-plan]').forEach(b=>b.onclick=()=>showGalleryPlan(+b.dataset.plan));
 $('bPlanClear').onclick=()=>{ pushUndo(); clearGalleryPlans();
   document.querySelectorAll('[data-plan]').forEach(b=>b.classList.remove('on')); select(null); save(); };
+
+/* --- 会場レイアウト全体 5案（Claude提案・docs/20より）。クリックで全配置を入れ替え --- */
+const P=Math.PI;
+const L_COMMON=[            // どの案にも入る共通（受付・ビュッフェ・ランタン・花火など）
+  ['cloak',-22,-17,0],['cloak',-22,-15,0],['welcome',-24,-13,0.4],
+  ['lantern',-25,5,0],['lantern',-25,-9,0.6],
+  ['buffet',-20,14,0],['buffet',-20,11,0],['buffet',-20,8,0],
+  ['fire',-20,42,0],['bins',16,6,0],
+];
+const LAYOUTS={
+  1:{ items:[...L_COMMON,
+      ['takasago',-15,27,-P/2],['arch',-17.5,27,P/2],['stage',-15,20,-P/2],['aisle',-8,27,P/2],
+      ['long12',1,19,0],['long12',9,19,0],['long12',1,23,0],['long12',9,23,0],
+      ['long12',1,31,0],['long12',9,31,0],['long12',1,35,0],['long12',9,35,0],
+      ['barCounter',15,27,P],['plan1',2,-6,0],['plan1',7,-6,0],
+      ['screen',-15,13,-P/2],['dj',14,20,-P/2],['lounge',17,37,-P/2],['sofa3d',16,33,P/2],
+      ['lights',5,16,0],['lights',5,38,0],['kids',20,42,0],['palm',14,-6,0],['person',-7,27,0] ],
+    view:{p:[17,7,27],t:[-8,2,27]},
+    hint:'案1 サンセット・シアター：全卓を同じ向きに整列し、全員が西の高砂＆夕日に正対。18:06に振り向かず観られる「決まる瞬間」重視の劇場型。' },
+  2:{ items:[...L_COMMON,
+      ['takasago',-13,27,-P/2],['stage',3,27,0],
+      ['round10',-6,27,0],
+      ['round10',-4,18,0.3],['round10',5,16,-0.2],['round10',12,20,0.5],['round10',14,29,-0.4],
+      ['round10',11,37,0.2],['round10',2,40,-0.3],['round10',-5,35,0.4],['round10',15,24,0.1],['round10',-6,44,-0.2],
+      ['barCounter',14,14,P*0.9],['parasol',-4,18,0],['parasol',11,37,0],['parasol',14,29,0],
+      ['plan1',9,-6,0],['plan1',13,-6,0],['dj',16,20,-P/2],['screen',18,30,-P/2],
+      ['lights',4,14,0],['lights',4,40,0],['kids',20,42,0],['palm',-2,-4,0],['person',-6,25,0],['person',3,29,0] ],
+    view:{p:[21,9,9],t:[3,1.5,28]},
+    hint:'案2 島クラスター（ゆんたく）：丸卓を島に散らし中央を三線・ゲームの広場に。海側の最前は家族島。絵梨香さんが島を回って全員にハグ＆サンクスギフト。' },
+  3:{ items:[...L_COMMON,
+      ['takasago',-15,24,-P/2],['arch',-17.5,24,P/2],['stage',-4,18,0],
+      ['round8',2,16,0.2],['round8',9,17,-0.2],['round8',4,23,0.3],['round8',11,24,-0.3],['round8',-2,24,0],['round8',7,29,0.2],
+      ['parasol',2,16,0],['parasol',11,24,0],['barCounter',15,16,P],
+      ['starTent',10,37,0],['lounge',6,36,0],['lounge',14,36,P],['sofa3d',8,40,0],['sofa3d',12,40,P],['round8',10,33,0],['screen',3,42,0.4],
+      ['plan4',-4,24,P/2],['plan4',-8,24,P/2],['dj',16,42,-P/2],
+      ['lights',6,30,0],['kids',20,20,0],['person',-7,24,0],['palm',18,-4,0] ],
+    view:{p:[24,10,40],t:[6,2,32]},
+    hint:'案3 デイ→ナイト二幕：昼は中央の島＋三線で賑やかに→夕日→夜は南東の「居間」（ソファ・スクリーン・大テント）へ移動して手紙・大合唱・花火退場。進行表と完全一致。' },
+  4:{ items:[...L_COMMON,
+      ['takasago',-10,27,-P/2],['arch',-12.5,27,P/2],['stage',-10,19,-P/2],
+      ['long12',-4,20,0],['long12',2,20,0],['long12',8,20,0],
+      ['long12',-4,27,0],['long12',2,27,0],['long12',8,27,0],
+      ['long12',-4,34,0],['long12',2,34,0],['long12',8,34,0],
+      ['starTent',2,27,0],['barCounter',15,27,P],['plan1',4,-6,0],['plan1',9,-6,0],
+      ['dj',15,20,-P/2],['screen',15,35,-P/2],
+      ['lights',2,16,0],['lights',2,38,0],['kids',20,42,0],['person',-2,27,0],['palm',15,-6,0] ],
+    view:{p:[18,8,27],t:[0,2,27]},
+    hint:'案4 ワン・ロングテーブル：全員でひとつの長い食卓を囲む大家族のディナー。端まで花×キャンドル×吊りランタン、大テントで包む。「家族が全員そろう唯一の日」の象徴。' },
+  5:{ items:[...L_COMMON,
+      ['takasago',-15,27,-P/2],['arch',-17.5,27,P/2],['stage',-10,21,-P/2],['aisle',-11,27,P/2],
+      ['round10',-6,27,0],['round10',-8,33,-0.3],['round10',-8,21,0.3],
+      ['round10',0,27,0],['round10',-2,35,-0.3],['round10',-2,19,0.3],['round10',-7.5,40,-0.5],['round10',-7.5,14,0.5],['round10',6,27,0],
+      ['barCounter',15,27,P],['plan1',6,-6,0],['plan1',11,-6,0],['dj',15,17,-P/2],['screen',15,37,-P/2],
+      ['lights',-2,15,0],['lights',-2,39,0],['kids',20,42,0],['person',-8,27,0],['palm',14,-6,0] ],
+    view:{p:[18,8,27],t:[-11,2,27]},
+    hint:'案5 半円（海を背に囲む）：海・夕日を背にした二人を、家族を最内周にゲストが半円で囲む。手紙・ファミリーミート・ルーツトークを全員で見守る。夕日が二人を縁取る。' },
+};
+function loadLayout(n){
+  const L=LAYOUTS[n]; if(!L) return;
+  pushUndo(); clearAll();
+  L.items.forEach(a=>{ if(BY_ID[a[0]]) addItem(a[0],a[1],a[2],a[3]||0); });
+  const v=L.view; camera.position.set(...v.p); controls.target.set(...v.t); controls.update();
+  document.querySelectorAll('[data-view]').forEach(x=>x.classList.remove('on'));
+  document.querySelectorAll('[data-plan]').forEach(b=>b.classList.remove('on'));
+  document.querySelectorAll('[data-layout]').forEach(b=>b.classList.toggle('on', b.dataset.layout===String(n)));
+  setPlanMode(false); select(null);
+  showHint(L.hint); clearTimeout(window.__gpT); window.__gpT=setTimeout(hideHint,7000); save();
+}
+document.querySelectorAll('[data-layout]').forEach(b=>b.onclick=()=>loadLayout(+b.dataset.layout));
 
 /* --- 保存 / 読込 --- */
 const KEY='bibi-venue-layout-v6';   // v6: DJブース（生木×茅葺き）作り替え＋スターテント（大）を追加（旧保存を無効化）
