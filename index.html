@@ -962,14 +962,56 @@ function speakerStand(){
   cone.rotation.x=Math.PI/2; cone.position.set(0,1.52,.18);
   g.add(base,box,cone); return g;
 }
+/* DJブース＝生木の板カウンター＋ドライパームの茅葺き屋根（ビーチ小屋風／参照写真より） */
+const _thatchTex = canvasTex(96,(g,S)=>{
+  g.fillStyle='#b0854a'; g.fillRect(0,0,S,S);
+  const cols=['#8a6636','#c9a064','#9c7840','#d8b87e','#7e5c30'];
+  for(let i=0;i<260;i++){ const x=Math.random()*S, len=S*(.28+Math.random()*.66);
+    g.strokeStyle=cols[i%cols.length]; g.globalAlpha=.45+Math.random()*.5; g.lineWidth=1+Math.random()*2.2;
+    g.beginPath(); g.moveTo(x,-2); g.lineTo(x+(Math.random()-.5)*S*.12, len); g.stroke(); }
+  g.globalAlpha=1;
+});
+_thatchTex.repeat.set(2,1);
+const _thatchMat = new THREE.MeshStandardMaterial({ map:_thatchTex, roughness:.96, side:THREE.DoubleSide });
 function djBooth(){
   const g=new THREE.Group();
-  const t=new THREE.Mesh(rbox(1.8,.05,.72,.015), M.black); t.position.y=.96;
-  const d=new THREE.Mesh(new THREE.BoxGeometry(1.76,.94,.7), M.black); d.position.y=.48;
-  const ctl=new THREE.Mesh(rbox(1.1,.09,.4,.015), M.chrome); ctl.position.y=1.02;
-  const lap=new THREE.Mesh(rbox(.36,.24,.02,.008), M.chrome); lap.position.set(.6,1.12,-.12); lap.rotation.x=-.28;
-  g.add(t,d,ctl,lap);
-  for(const s of [-1,1]){ const sp=speakerStand(); sp.position.set(s*1.5,0,0); g.add(sp); }
+  const W=1.9, D=.78, H=1.02;
+  // 生木の板カウンター
+  const body=new THREE.Mesh(rbox(W,H,D,.015), M.wood); body.position.y=H/2; g.add(body);
+  const top=new THREE.Mesh(rbox(W+.1,.06,D+.12,.015), M.woodDk); top.position.y=H+.03; g.add(top);
+  // 4本柱（天板から屋根まで）
+  const postH=1.5, colH=H+postH;
+  for(const sx of [-1,1]) for(const sz of [-1,1]){
+    const p=new THREE.Mesh(new THREE.CylinderGeometry(.035,.045,colH,8), M.wood);
+    p.position.set(sx*(W/2-.05),colH/2,sz*(D/2-.03)); g.add(p);
+  }
+  // 茅葺き（ドライパーム）屋根：本体＋前後に垂れるフサ
+  const roofY=colH, rw=W+.55, rd=D+.55;
+  const base=new THREE.Mesh(rbox(rw,.3,rd,.05), _thatchMat); base.position.y=roofY+.15; g.add(base);
+  const cap=new THREE.Mesh(rbox(rw*.7,.16,rd*.7,.05), _thatchMat); cap.position.y=roofY+.3; g.add(cap);
+  for(const sz of [1,-1]){
+    for(let i=0;i<14;i++){
+      const fl=(.28+Math.random()*.34);
+      const s=new THREE.Mesh(new THREE.PlaneGeometry(rw/14*.95, fl), _thatchMat);
+      s.position.set(-rw/2 + rw/14*(i+.5), roofY+.06 - fl/2, sz*(rd/2-.02));
+      s.rotation.x = sz>0 ? .18 : -.18; g.add(s);
+    }
+  }
+  // DJ機材（天板の上）：2デッキ＋ミキサー
+  const gy=H+.06;
+  for(const dx of [-.5,.5]){
+    const deck=new THREE.Mesh(rbox(.34,.05,.3,.01), M.black); deck.position.set(dx,gy,0); g.add(deck);
+    const plate=new THREE.Mesh(new THREE.CylinderGeometry(.11,.11,.015,20), std({color:0x2a2a2e,roughness:.4})); plate.position.set(dx,gy+.03,0); g.add(plate);
+  }
+  const mix=new THREE.Mesh(rbox(.26,.07,.3,.01), std({color:0x1c1c20,roughness:.5})); mix.position.set(0,gy+.01,0); g.add(mix);
+  for(let i=0;i<4;i++){ const k=new THREE.Mesh(new THREE.CylinderGeometry(.012,.012,.03,8), M.chrome); k.position.set(-.09+i*.06,gy+.06,.05); g.add(k); }
+  // パンパスグラスの花瓶（脇・ボホ装飾）
+  const vx=W/2+.42, vz=.06;
+  const jar=new THREE.Mesh(new THREE.CylinderGeometry(.09,.07,.5,14), std({color:0xcfc3ad,roughness:.9})); jar.position.set(vx,.25,vz); g.add(jar);
+  for(let i=0;i<6;i++){ const pl=new THREE.Mesh(new THREE.CylinderGeometry(.004,.055,.55,6), std({color:0xdccdaa,roughness:.95}));
+    const a=Math.random()*Math.PI*2, r=Math.random()*.12;
+    pl.position.set(vx+Math.cos(a)*r,.77+Math.random()*.1,vz+Math.sin(a)*r);
+    pl.rotation.set((Math.random()-.5)*.5,0,(Math.random()-.5)*.5); g.add(pl); }
   return g;
 }
 function screenProj(){
@@ -1024,6 +1066,46 @@ function stretchTent(w=9, l=14){
   for(const sx of [-1,1]) for(const sz of [-1,1]){
     const pole=new THREE.Mesh(new THREE.CylinderGeometry(.035,.045,1.0,8), M.metal);
     pole.position.set(sx*w/2, .5, sz*l/2); pole.castShadow=true; g.add(pole);
+  }
+  return g;
+}
+/* 大きいテント＝スターテント（中央ピークから外周へ、縁が星形にスキャロップ／参照写真より） */
+const _tentMat = new THREE.MeshStandardMaterial({ color:0xf3ece0, roughness:.9, side:THREE.DoubleSide, emissive:0x3a2810, emissiveIntensity:.22 });
+function starTent(R=6.0, peak=5.7){
+  const g=new THREE.Group();
+  const N=8, Hpole=2.8, Hvalley=1.9, Rvalley=R*0.8, SEG=112, RINGS=7;
+  const verts=[], idx=[];
+  for(let r=0;r<=RINGS;r++){
+    const u=r/RINGS;                         // 0=中央ピーク, 1=外周
+    for(let s=0;s<=SEG;s++){
+      const th=s/SEG*Math.PI*2;
+      const t=(Math.cos(N*th)+1)/2;          // 1=星の頂点, 0=谷
+      const rimR=Rvalley+(R-Rvalley)*t, rimH=Hvalley+(Hpole-Hvalley)*t;
+      const rad=rimR*u, h=peak+(rimH-peak)*Math.pow(u,0.82);
+      verts.push(Math.cos(th)*rad, h, Math.sin(th)*rad);
+    }
+  }
+  const row=SEG+1;
+  for(let r=0;r<RINGS;r++) for(let s=0;s<SEG;s++){ const a=r*row+s, b=a+1, c=a+row, d=c+1; idx.push(a,c,b, b,c,d); }
+  const geo=new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(verts,3)); geo.setIndex(idx); geo.computeVertexNormals();
+  const membrane=new THREE.Mesh(geo,_tentMat); membrane.castShadow=true; membrane.receiveShadow=true; g.add(membrane);
+  // 中央ポール
+  const cp=new THREE.Mesh(new THREE.CylinderGeometry(.06,.08,peak,12), M.wood); cp.position.y=peak/2; cp.castShadow=true; g.add(cp);
+  // 外周ポール＋張り綱＋先端の灯り
+  for(let k=0;k<N;k++){
+    const th=k/N*Math.PI*2, px=Math.cos(th)*R, pz=Math.sin(th)*R;
+    const pl=new THREE.Mesh(new THREE.CylinderGeometry(.04,.05,Hpole,8), M.metal); pl.position.set(px,Hpole/2,pz); pl.castShadow=true; g.add(pl);
+    const ax=Math.cos(th)*(R+1.7), az=Math.sin(th)*(R+1.7), dx=ax-px, dz=az-pz, len=Math.hypot(dx,Hpole,dz);
+    const guy=new THREE.Mesh(new THREE.CylinderGeometry(.006,.006,len,4), M.black);
+    guy.position.set((px+ax)/2,Hpole/2,(pz+az)/2);
+    guy.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), new THREE.Vector3(dx,-Hpole,dz).normalize()); g.add(guy);
+    const bulb=new THREE.Mesh(new THREE.SphereGeometry(.05,8,6), M.bulb); bulb.position.set(px,Hpole+.02,pz); g.add(bulb);
+  }
+  // 外周に沿ってフェアリーライトの珠（谷側に少し垂らす）
+  for(let k=0;k<N;k++){ const th0=k/N*Math.PI*2, th1=(k+1)/N*Math.PI*2;
+    for(let j=1;j<=3;j++){ const f=j/4, th=th0+(th1-th0)*f;
+      const b=new THREE.Mesh(new THREE.SphereGeometry(.035,6,5), M.bulb); b.position.set(Math.cos(th)*Rvalley, Hvalley-.18, Math.sin(th)*Rvalley); g.add(b); }
   }
   return g;
 }
@@ -1434,7 +1516,7 @@ const CATALOG=[
     {id:'bins',    n:'ゴミステーション',     c:'#3a7d44', sz:'1.8×0.6m', b:bins},
   ]},
   {g:'音響・映像', items:[
-    {id:'dj',      n:'DJブース',           c:'#24262b', sz:'4.8×0.8m', b:djBooth},
+    {id:'dj',      n:'DJブース（生木×茅葺き）', c:'#b5893f', sz:'1.9×0.9m', b:djBooth},
     {id:'speaker', n:'スピーカー',          c:'#24262b', sz:'0.4m',    b:speakerStand},
     {id:'screen',  n:'スクリーン',          c:'#f2f4f5', sz:'3.6×2.6m', b:screenProj},
     {id:'stage',   n:'ステージ（三線）',     c:'#6e6252', sz:'3×2m',    b:stage},
@@ -1460,6 +1542,7 @@ const CATALOG=[
   {g:'テント・くつろぎ', items:[
     {id:'stretch', n:'ストレッチテント（おしゃれ）', c:'#f2ede2', sz:'9×14m', b:()=>stretchTent(9,14), resize:'x'},
     {id:'stretchS',n:'ストレッチテント 小',        c:'#f2ede2', sz:'6×8m',  b:()=>stretchTent(6,8),  resize:'x'},
+    {id:'starTent',n:'スターテント（大・星形）',    c:'#f2ede2', sz:'φ12m',  b:()=>starTent(6.0,5.7)},
     {id:'tent3',   n:'テント 3×3m',         c:'#fbfaf6', sz:'3×3m',   b:()=>tent(3,3)},
     {id:'tent5',   n:'テント 5×5m',         c:'#fbfaf6', sz:'5×5m',   b:()=>tent(5,5)},
     {id:'tentBig', n:'大テント 6×12m',      c:'#fbfaf6', sz:'6×12m',  b:()=>tent(6,12,2.6,1.5)},
@@ -1777,6 +1860,8 @@ const PRESET=[
   {id:'long12',x:0,z:22,ry:0},{id:'long12',x:11,z:22,ry:0},
   {id:'long12',x:0,z:31,ry:0},{id:'long12',x:11,z:31,ry:0},
   {id:'long12',x:0,z:35,ry:0},{id:'long12',x:11,z:35,ry:0},
+  // 大きいテント（スターテント）＝ディナーの上空に
+  {id:'starTent',x:5.5,z:26,ry:0},
   // ❹ 居間スペース（東側・20:30フィナーレ移動先）
   {id:'round8',x:19,z:21,ry:0},{id:'round8',x:20,z:27,ry:0},
   {id:'sofa3d',x:17.5,z:31,ry:Math.PI/2},{id:'sofa3d',x:22.5,z:31,ry:-Math.PI/2},
@@ -1830,7 +1915,7 @@ $('bPlanClear').onclick=()=>{ pushUndo(); clearGalleryPlans();
   document.querySelectorAll('[data-plan]').forEach(b=>b.classList.remove('on')); select(null); save(); };
 
 /* --- 保存 / 読込 --- */
-const KEY='bibi-venue-layout-v5';   // v5: パーカウンター（白×木）＋吊りランタンを追加（旧保存を無効化）
+const KEY='bibi-venue-layout-v6';   // v6: DJブース（生木×茅葺き）作り替え＋スターテント（大）を追加（旧保存を無効化）
 function save(){ try{ localStorage.setItem(KEY, JSON.stringify(snapshot())); }catch(e){} }
 function load(){
   try{
